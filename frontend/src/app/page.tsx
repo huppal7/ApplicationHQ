@@ -13,13 +13,12 @@ export default function Home() {
           for the frontend &mdash; built with Next.js, TypeScript, and Tailwind
           CSS.
         </p>
-        <p className="text-sm text-zinc-500 dark:text-zinc-500">
-          Edit{" "}
-          <code className="rounded bg-black/[.06] px-1.5 py-0.5 font-mono text-xs dark:bg-white/[.08]">
-            src/app/page.tsx
-          </code>{" "}
-          to begin.
-        </p>
+        <a
+          href="/dashboard"
+          className="rounded-md bg-foreground px-5 py-2.5 text-sm font-medium text-background transition-colors hover:opacity-90"
+        >
+          Go to dashboard
+        </a>
       </main>
     </div>
   );
