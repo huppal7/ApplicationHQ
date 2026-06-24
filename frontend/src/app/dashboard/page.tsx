@@ -5,7 +5,9 @@ import {
   Application,
   NewApplication,
   createApplication,
+  deleteApplication,
   getApplications,
+  updateApplication,
 } from "@/lib/api";
 
 const EMPTY_FORM: NewApplication = {
@@ -28,6 +30,11 @@ export default function DashboardPage() {
   const [submitting, setSubmitting] = useState(false);
   const [submitError, setSubmitError] = useState<string | null>(null);
 
+  const [editingId, setEditingId] = useState<number | null>(null);
+  const [editForm, setEditForm] = useState<NewApplication>(EMPTY_FORM);
+  const [rowActionId, setRowActionId] = useState<number | null>(null);
+  const [rowError, setRowError] = useState<string | null>(null);
+
   const loadApplications = useCallback(async () => {
     setLoading(true);
     setError(null);
@@ -42,14 +49,104 @@ export default function DashboardPage() {
   }, []);
 
   useEffect(() => {
-    loadApplications();
-  }, [loadApplications]);
+    let ignore = false;
+
+    getApplications()
+      .then((data) => {
+        if (!ignore) {
+          setApplications(data);
+        }
+      })
+      .catch((err) => {
+        if (!ignore) {
+          setError(err instanceof Error ? err.message : "Something went wrong.");
+        }
+      })
+      .finally(() => {
+        if (!ignore) {
+          setLoading(false);
+        }
+      });
+
+    return () => {
+      ignore = true;
+    };
+  }, []);
 
   function updateField<K extends keyof NewApplication>(
     field: K,
     value: NewApplication[K],
   ) {
     setForm((prev) => ({ ...prev, [field]: value }));
+  }
+
+  function updateEditField<K extends keyof NewApplication>(
+    field: K,
+    value: NewApplication[K],
+  ) {
+    setEditForm((prev) => ({ ...prev, [field]: value }));
+  }
+
+  function startEditing(application: Application) {
+    setRowError(null);
+    setEditingId(application.id);
+    setEditForm({
+      company: application.company,
+      role: application.role,
+      status: application.status,
+      dateApplied: application.dateApplied ?? "",
+      source: application.source,
+      notes: application.notes,
+    });
+  }
+
+  function cancelEditing() {
+    setEditingId(null);
+    setEditForm(EMPTY_FORM);
+  }
+
+  async function handleSave(id: number) {
+    setRowActionId(id);
+    setRowError(null);
+    try {
+      await updateApplication(id, {
+        ...editForm,
+        dateApplied: editForm.dateApplied ? editForm.dateApplied : null,
+      });
+      cancelEditing();
+      await loadApplications();
+    } catch (err) {
+      setRowError(
+        err instanceof Error ? err.message : "Failed to update application.",
+      );
+    } finally {
+      setRowActionId(null);
+    }
+  }
+
+  async function handleDelete(application: Application) {
+    const confirmed = window.confirm(
+      `Delete the application for ${application.role} at ${application.company}?`,
+    );
+    if (!confirmed) {
+      return;
+    }
+
+    setRowActionId(application.id);
+    setRowError(null);
+    try {
+      await deleteApplication(application.id);
+      if (editingId === application.id) {
+        cancelEditing();
+      }
+      await loadApplications();
+    } catch (err) {
+      setRowError(
+        err instanceof Error ? err.message : "Failed to delete application.",
+      );
+    } finally {
+      setRowActionId(null);
+    }
   }
 
   async function handleSubmit(event: React.FormEvent) {
@@ -170,6 +267,11 @@ export default function DashboardPage() {
             Refresh
           </button>
         </div>
+        {rowError && (
+          <div className="mb-3 rounded-md border border-red-300 bg-red-50 p-3 text-sm text-red-700 dark:bg-red-950/30">
+            {rowError}
+          </div>
+        )}
 
         {loading ? (
           <p className="py-8 text-center text-sm text-zinc-500">Loading...</p>
@@ -199,22 +301,146 @@ export default function DashboardPage() {
                   <Th>Date Applied</Th>
                   <Th>Source</Th>
                   <Th>Notes</Th>
+                  <Th>Actions</Th>
                 </tr>
               </thead>
               <tbody>
-                {applications.map((app) => (
-                  <tr
-                    key={app.id}
-                    className="border-b border-black/[.05] last:border-0 dark:border-white/[.08]"
-                  >
-                    <Td>{app.company}</Td>
-                    <Td>{app.role}</Td>
-                    <Td>{app.status}</Td>
-                    <Td>{app.dateApplied ?? "-"}</Td>
-                    <Td>{app.source || "-"}</Td>
-                    <Td>{app.notes || "-"}</Td>
-                  </tr>
-                ))}
+                {applications.map((app) => {
+                  const isEditing = editingId === app.id;
+                  const isWorking = rowActionId === app.id;
+
+                  return (
+                    <tr
+                      key={app.id}
+                      className="border-b border-black/[.05] last:border-0 dark:border-white/[.08]"
+                    >
+                      {isEditing ? (
+                        <>
+                          <Td>
+                            <input
+                              type="text"
+                              required
+                              value={editForm.company}
+                              onChange={(e) =>
+                                updateEditField("company", e.target.value)
+                              }
+                              className="input"
+                            />
+                          </Td>
+                          <Td>
+                            <input
+                              type="text"
+                              required
+                              value={editForm.role}
+                              onChange={(e) =>
+                                updateEditField("role", e.target.value)
+                              }
+                              className="input"
+                            />
+                          </Td>
+                          <Td>
+                            <select
+                              value={editForm.status}
+                              onChange={(e) =>
+                                updateEditField("status", e.target.value)
+                              }
+                              className="input"
+                            >
+                              {STATUS_OPTIONS.map((option) => (
+                                <option key={option} value={option}>
+                                  {option}
+                                </option>
+                              ))}
+                            </select>
+                          </Td>
+                          <Td>
+                            <input
+                              type="date"
+                              value={editForm.dateApplied ?? ""}
+                              onChange={(e) =>
+                                updateEditField("dateApplied", e.target.value)
+                              }
+                              className="input"
+                            />
+                          </Td>
+                          <Td>
+                            <input
+                              type="text"
+                              value={editForm.source}
+                              onChange={(e) =>
+                                updateEditField("source", e.target.value)
+                              }
+                              className="input"
+                            />
+                          </Td>
+                          <Td>
+                            <input
+                              type="text"
+                              value={editForm.notes}
+                              onChange={(e) =>
+                                updateEditField("notes", e.target.value)
+                              }
+                              className="input"
+                            />
+                          </Td>
+                          <Td>
+                            <div className="flex flex-wrap gap-2">
+                              <button
+                                type="button"
+                                onClick={() => handleSave(app.id)}
+                                disabled={
+                                  isWorking ||
+                                  !editForm.company.trim() ||
+                                  !editForm.role.trim()
+                                }
+                                className="rounded-md bg-foreground px-3 py-1.5 text-xs font-medium text-background transition-colors hover:opacity-90 disabled:opacity-50"
+                              >
+                                {isWorking ? "Saving..." : "Save"}
+                              </button>
+                              <button
+                                type="button"
+                                onClick={cancelEditing}
+                                disabled={isWorking}
+                                className="rounded-md border border-black/[.15] px-3 py-1.5 text-xs font-medium hover:bg-black/[.04] disabled:opacity-50 dark:border-white/[.2] dark:hover:bg-white/[.08]"
+                              >
+                                Cancel
+                              </button>
+                            </div>
+                          </Td>
+                        </>
+                      ) : (
+                        <>
+                          <Td>{app.company}</Td>
+                          <Td>{app.role}</Td>
+                          <Td>{app.status}</Td>
+                          <Td>{app.dateApplied ?? "-"}</Td>
+                          <Td>{app.source || "-"}</Td>
+                          <Td>{app.notes || "-"}</Td>
+                          <Td>
+                            <div className="flex flex-wrap gap-2">
+                              <button
+                                type="button"
+                                onClick={() => startEditing(app)}
+                                disabled={isWorking}
+                                className="rounded-md border border-black/[.15] px-3 py-1.5 text-xs font-medium hover:bg-black/[.04] disabled:opacity-50 dark:border-white/[.2] dark:hover:bg-white/[.08]"
+                              >
+                                Edit
+                              </button>
+                              <button
+                                type="button"
+                                onClick={() => handleDelete(app)}
+                                disabled={isWorking}
+                                className="rounded-md border border-red-300 px-3 py-1.5 text-xs font-medium text-red-600 hover:bg-red-50 disabled:opacity-50 dark:hover:bg-red-950/30"
+                              >
+                                {isWorking ? "Deleting..." : "Delete"}
+                              </button>
+                            </div>
+                          </Td>
+                        </>
+                      )}
+                    </tr>
+                  );
+                })}
               </tbody>
             </table>
           </div>

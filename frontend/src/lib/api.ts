@@ -36,3 +36,27 @@ export async function createApplication(
   }
   return res.json();
 }
+
+export async function updateApplication(
+  id: number,
+  application: NewApplication,
+): Promise<Application> {
+  const res = await fetch(`${APPLICATIONS_URL}/${id}`, {
+    method: "PUT",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(application),
+  });
+  if (!res.ok) {
+    throw new Error(`Failed to update application (HTTP ${res.status})`);
+  }
+  return res.json();
+}
+
+export async function deleteApplication(id: number): Promise<void> {
+  const res = await fetch(`${APPLICATIONS_URL}/${id}`, {
+    method: "DELETE",
+  });
+  if (!res.ok) {
+    throw new Error(`Failed to delete application (HTTP ${res.status})`);
+  }
+}
