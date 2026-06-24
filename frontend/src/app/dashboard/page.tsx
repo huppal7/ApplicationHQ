@@ -1,5 +1,6 @@
 "use client";
 
+import { UserButton } from "@clerk/nextjs";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import {
   Application,
@@ -228,13 +229,16 @@ export default function DashboardPage() {
 
   return (
     <main className="mx-auto w-full max-w-5xl px-6 py-10">
-      <header className="mb-8">
-        <h1 className="text-2xl font-semibold tracking-tight">
-          Application Dashboard
-        </h1>
-        <p className="mt-1 text-sm text-zinc-500">
-          Track your job applications.
-        </p>
+      <header className="mb-8 flex items-start justify-between gap-4">
+        <div>
+          <h1 className="text-2xl font-semibold tracking-tight">
+            Application Dashboard
+          </h1>
+          <p className="mt-1 text-sm text-zinc-500">
+            Track your job applications.
+          </p>
+        </div>
+        <UserButton />
       </header>
 
       <section className="mb-10 rounded-lg border border-black/[.08] p-5 dark:border-white/[.145]">
