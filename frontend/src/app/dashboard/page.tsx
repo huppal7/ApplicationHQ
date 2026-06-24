@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import {
   Application,
   NewApplication,
@@ -19,7 +19,7 @@ const EMPTY_FORM: NewApplication = {
   notes: "",
 };
 
-const STATUS_OPTIONS = ["APPLIED", "INTERVIEW", "OFFER", "REJECTED"];
+const STATUS_OPTIONS = ["APPLIED", "OA", "INTERVIEW", "OFFER", "REJECTED"];
 
 export default function DashboardPage() {
   const [applications, setApplications] = useState<Application[]>([]);
@@ -34,6 +34,43 @@ export default function DashboardPage() {
   const [editForm, setEditForm] = useState<NewApplication>(EMPTY_FORM);
   const [rowActionId, setRowActionId] = useState<number | null>(null);
   const [rowError, setRowError] = useState<string | null>(null);
+
+  const metrics = useMemo(() => {
+    const counts = applications.reduce(
+      (acc, application) => {
+        const status = application.status.trim().toUpperCase();
+        if (status === "APPLIED") {
+          acc.applied += 1;
+        } else if (status === "OA") {
+          acc.oa += 1;
+        } else if (status === "INTERVIEW") {
+          acc.interview += 1;
+        } else if (status === "OFFER") {
+          acc.offer += 1;
+        } else if (status === "REJECTED") {
+          acc.rejected += 1;
+        }
+        return acc;
+      },
+      {
+        total: applications.length,
+        applied: 0,
+        oa: 0,
+        interview: 0,
+        offer: 0,
+        rejected: 0,
+      },
+    );
+
+    return [
+      { label: "Total Applications", value: counts.total },
+      { label: "Applied", value: counts.applied },
+      { label: "OA", value: counts.oa },
+      { label: "Interview", value: counts.interview },
+      { label: "Offer", value: counts.offer },
+      { label: "Rejected", value: counts.rejected },
+    ];
+  }, [applications]);
 
   const loadApplications = useCallback(async () => {
     setLoading(true);
@@ -257,6 +294,24 @@ export default function DashboardPage() {
         </form>
       </section>
 
+      <section className="mb-10">
+        <div className="mb-3">
+          <h2 className="text-lg font-medium">Summary</h2>
+          <p className="mt-1 text-sm text-zinc-500">
+            Current pipeline totals from your application list.
+          </p>
+        </div>
+        <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-6">
+          {metrics.map((metric) => (
+            <MetricCard
+              key={metric.label}
+              label={metric.label}
+              value={metric.value}
+            />
+          ))}
+        </div>
+      </section>
+
       <section>
         <div className="mb-3 flex items-center justify-between">
           <h2 className="text-lg font-medium">Applications</h2>
@@ -467,6 +522,17 @@ function Field({
       </span>
       {children}
     </label>
+  );
+}
+
+function MetricCard({ label, value }: { label: string; value: number }) {
+  return (
+    <div className="rounded-lg border border-black/[.08] bg-black/[.02] p-4 dark:border-white/[.145] dark:bg-white/[.04]">
+      <p className="text-xs font-medium uppercase tracking-wide text-zinc-500">
+        {label}
+      </p>
+      <p className="mt-2 text-3xl font-semibold tracking-tight">{value}</p>
+    </div>
   );
 }
 
