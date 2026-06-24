@@ -20,6 +20,7 @@ const EMPTY_FORM: NewApplication = {
 };
 
 const STATUS_OPTIONS = ["APPLIED", "OA", "INTERVIEW", "OFFER", "REJECTED"];
+const STATUS_FILTER_OPTIONS = ["ALL", ...STATUS_OPTIONS];
 
 export default function DashboardPage() {
   const [applications, setApplications] = useState<Application[]>([]);
@@ -34,6 +35,8 @@ export default function DashboardPage() {
   const [editForm, setEditForm] = useState<NewApplication>(EMPTY_FORM);
   const [rowActionId, setRowActionId] = useState<number | null>(null);
   const [rowError, setRowError] = useState<string | null>(null);
+  const [searchQuery, setSearchQuery] = useState("");
+  const [statusFilter, setStatusFilter] = useState("ALL");
 
   const metrics = useMemo(() => {
     const counts = applications.reduce(
@@ -71,6 +74,23 @@ export default function DashboardPage() {
       { label: "Rejected", value: counts.rejected },
     ];
   }, [applications]);
+
+  const filteredApplications = useMemo(() => {
+    const normalizedQuery = searchQuery.trim().toLowerCase();
+
+    return applications.filter((application) => {
+      const normalizedStatus = application.status.trim().toUpperCase();
+      const matchesStatus =
+        statusFilter === "ALL" || normalizedStatus === statusFilter;
+      const matchesSearch =
+        normalizedQuery.length === 0 ||
+        [application.company, application.role, application.notes].some(
+          (value) => value.toLowerCase().includes(normalizedQuery),
+        );
+
+      return matchesStatus && matchesSearch;
+    });
+  }, [applications, searchQuery, statusFilter]);
 
   const loadApplications = useCallback(async () => {
     setLoading(true);
@@ -322,6 +342,32 @@ export default function DashboardPage() {
             Refresh
           </button>
         </div>
+        <div className="mb-4 grid grid-cols-1 gap-3 rounded-lg border border-black/[.08] p-4 dark:border-white/[.145] sm:grid-cols-[1fr_220px]">
+          <label className="flex flex-col gap-1.5 text-sm">
+            <span className="font-medium">Search</span>
+            <input
+              type="search"
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+              placeholder="Search company, role, or notes..."
+              className="input"
+            />
+          </label>
+          <label className="flex flex-col gap-1.5 text-sm">
+            <span className="font-medium">Status</span>
+            <select
+              value={statusFilter}
+              onChange={(e) => setStatusFilter(e.target.value)}
+              className="input"
+            >
+              {STATUS_FILTER_OPTIONS.map((option) => (
+                <option key={option} value={option}>
+                  {formatStatus(option)}
+                </option>
+              ))}
+            </select>
+          </label>
+        </div>
         {rowError && (
           <div className="mb-3 rounded-md border border-red-300 bg-red-50 p-3 text-sm text-red-700 dark:bg-red-950/30">
             {rowError}
@@ -345,6 +391,13 @@ export default function DashboardPage() {
           <p className="py-8 text-center text-sm text-zinc-500">
             No applications yet. Add your first one above.
           </p>
+        ) : filteredApplications.length === 0 ? (
+          <div className="rounded-lg border border-dashed border-black/[.15] p-8 text-center dark:border-white/[.2]">
+            <p className="font-medium">No matching applications found.</p>
+            <p className="mt-1 text-sm text-zinc-500">
+              Try a different search term or status filter.
+            </p>
+          </div>
         ) : (
           <div className="overflow-x-auto rounded-lg border border-black/[.08] dark:border-white/[.145]">
             <table className="w-full text-left text-sm">
@@ -360,7 +413,7 @@ export default function DashboardPage() {
                 </tr>
               </thead>
               <tbody>
-                {applications.map((app) => {
+                {filteredApplications.map((app) => {
                   const isEditing = editingId === app.id;
                   const isWorking = rowActionId === app.id;
 
@@ -534,6 +587,16 @@ function MetricCard({ label, value }: { label: string; value: number }) {
       <p className="mt-2 text-3xl font-semibold tracking-tight">{value}</p>
     </div>
   );
+}
+
+function formatStatus(status: string) {
+  if (status === "ALL") {
+    return "All";
+  }
+  if (status === "OA") {
+    return "OA";
+  }
+  return status.charAt(0) + status.slice(1).toLowerCase();
 }
 
 function Th({ children }: { children: React.ReactNode }) {
