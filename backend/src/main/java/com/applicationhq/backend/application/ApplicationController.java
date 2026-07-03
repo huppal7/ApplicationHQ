@@ -14,6 +14,8 @@ import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 import org.springframework.web.util.UriComponentsBuilder;
 
+import jakarta.validation.Valid;
+
 @RestController
 @RequestMapping("/api/applications")
 public class ApplicationController {
@@ -35,7 +37,7 @@ public class ApplicationController {
 	}
 
 	@PostMapping
-	public ResponseEntity<Application> create(@RequestBody Application application,
+	public ResponseEntity<Application> create(@Valid @RequestBody Application application,
 			UriComponentsBuilder uriBuilder) {
 		Application created = service.create(application);
 		URI location = uriBuilder.path("/api/applications/{id}")
@@ -45,7 +47,7 @@ public class ApplicationController {
 	}
 
 	@PutMapping("/{id}")
-	public Application update(@PathVariable Long id, @RequestBody Application application) {
+	public Application update(@PathVariable Long id, @Valid @RequestBody Application application) {
 		return service.update(id, application);
 	}
 
